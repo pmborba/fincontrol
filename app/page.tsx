@@ -1,358 +1,178 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useMemo } from 'react';
-import { createClient } from '../utils/supabase/client'; // Ajustado para o seu caminho relativo
+import React, { useState } from 'react';
 import { 
-  ChevronLeft, ChevronRight, Plus, Calendar, 
-  CheckCircle2, Repeat, Wallet, Car, Utensils, 
-  Home, ShoppingBag, TrendingUp
+  Home, Utensils, Car, ShoppingBag, TrendingUp, 
+  Plus, ChevronDown, ChevronUp, Pill, HeartPulse, 
+  GraduationCap, Zap, Plane, Gift, MoreHorizontal 
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO VISUAL DAS CATEGORIAS ---
-const CATEGORIES_UI = [
-  { id: 1, name: 'Moradia', icon: <Home size={18} />, color: 'bg-purple-100 text-purple-600 border-purple-200' },
-  { id: 2, name: 'Alimentação', icon: <Utensils size={18} />, color: 'bg-orange-100 text-orange-600 border-orange-200' },
-  { id: 3, name: 'Transporte', icon: <Car size={18} />, color: 'bg-blue-100 text-blue-600 border-blue-200' },
-  { id: 4, name: 'Compras', icon: <ShoppingBag size={18} />, color: 'bg-pink-100 text-pink-600 border-pink-200' },
-  { id: 5, name: 'Investimento', icon: <TrendingUp size={18} />, color: 'bg-emerald-100 text-emerald-600 border-emerald-200' },
+// --- Configuração das Categorias ---
+const categories = [
+  // Principais (Aparecem primeiro)
+  { id: 'moradia', label: 'Moradia', icon: <Home size={18} />, color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { id: 'alimentacao', label: 'Alimentação', icon: <Utensils size={18} />, color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  { id: 'transporte', label: 'Transporte', icon: <Car size={18} />, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { id: 'compras', label: 'Compras', icon: <ShoppingBag size={18} />, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+  { id: 'investimento', label: 'Investimento', icon: <TrendingUp size={18} />, color: 'bg-green-100 text-green-700 border-green-200' },
+  
+  // Secundárias (Aparecem ao clicar em "Mais")
+  { id: 'saude', label: 'Saúde', icon: <HeartPulse size={18} />, color: 'bg-red-100 text-red-700 border-red-200' },
+  { id: 'educacao', label: 'Educação', icon: <GraduationCap size={18} />, color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  { id: 'contas', label: 'Contas Fixas', icon: <Zap size={18} />, color: 'bg-gray-100 text-gray-700 border-gray-200' },
+  { id: 'viagem', label: 'Viagem', icon: <Plane size={18} />, color: 'bg-sky-100 text-sky-700 border-sky-200' },
+  { id: 'lazer', label: 'Lazer', icon: <Gift size={18} />, color: 'bg-pink-100 text-pink-700 border-pink-200' },
 ];
 
-export default function Dashboard() {
-  const supabase = createClient();
+export default function FinanceApp() {
+  // Estados
+  const [isFormOpen, setIsFormOpen] = useState(false); // Começa fechado para priorizar a leitura
+  const [showAllCategories, setShowAllCategories] = useState(false); // Controla o botão "Mais"
+  const [selectedCategory, setSelectedCategory] = useState('moradia');
 
-  // --- ESTADOS ---
-  const [bills, setBills] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Dados fictícios para visualização
+  const transactions = [
+    { id: 1, desc: 'Supermercado Angeloni', val: -450.00, date: 'Hoje', cat: 'Alimentação' },
+    { id: 2, desc: 'Posto Ipiranga', val: -200.00, date: 'Ontem', cat: 'Transporte' },
+    { id: 3, desc: 'Freelance Projeto X', val: 1200.00, date: '02/01', cat: 'Investimento' },
+    { id: 4, desc: 'Aluguel', val: -1800.00, date: '01/01', cat: 'Moradia' },
+  ];
 
-  // Estados do Formulário Novo
-  const [formData, setFormData] = useState({
-    title: '',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    categoryId: 1,
-    status: 'pending' 
-  });
-
-  const [isRecurrent, setIsRecurrent] = useState(false);
-  const [recurrenceType, setRecurrenceType] = useState('monthly');
-  const [installments, setInstallments] = useState(2);
-
-  // --- BUSCAR DADOS ---
-  const fetchData = async () => {
-    setLoading(true);
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    // Ajuste seguro para datas UTC/Local
-    const startOfMonth = new Date(year, month, 1).toISOString();
-    const endOfMonth = new Date(year, month + 1, 0).toISOString();
-
-    const { data: billsData, error } = await supabase
-      .from('bills')
-      .select('*, categories(name)')
-      .gte('due_date', startOfMonth)
-      .lte('due_date', endOfMonth)
-      .order('due_date', { ascending: true });
-
-    if (error) {
-        console.error("Erro ao buscar dados:", error);
-    }
-
-    if (billsData) setBills(billsData);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [currentDate]);
-
-  // --- CÁLCULOS (KPIs) ---
-  const { totalPrevisto, totalPago, aPagar } = useMemo(() => {
-    const previsto = bills.reduce((acc, bill) => acc + (bill.amount_estimated || 0), 0);
-    const pago = bills.reduce((acc, bill) => bill.status === 'paid' ? acc + (bill.amount_paid || 0) : acc, 0);
-    return { totalPrevisto: previsto, totalPago: pago, aPagar: previsto - pago };
-  }, [bills]);
-
-  const monthLabel = useMemo(() => currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }), [currentDate]);
-
-  // --- AÇÕES ---
-  const changeMonth = (offset: number) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + offset);
-    setCurrentDate(newDate);
-  };
-
-  const addBill = async (e: any) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const loopCount = isRecurrent ? installments : 1;
-    const billsToInsert = [];
-    let baseDate = new Date(formData.date);
-    baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
-
-    for (let i = 0; i < loopCount; i++) {
-        const dueDate = new Date(baseDate);
-        if (isRecurrent) {
-            if (recurrenceType === 'monthly') dueDate.setMonth(baseDate.getMonth() + i);
-            if (recurrenceType === 'weekly') dueDate.setDate(baseDate.getDate() + (i * 7));
-        }
-
-        billsToInsert.push({
-            title: formData.title,
-            amount_estimated: parseFloat(formData.amount),
-            amount_paid: formData.status === 'paid' ? parseFloat(formData.amount) : 0,
-            status: formData.status,
-            due_date: dueDate.toISOString(),
-            total_installments: loopCount,
-            current_installment: i + 1,
-            category_id: formData.categoryId,
-        });
-    }
-
-    const { error } = await supabase.from('bills').insert(billsToInsert);
-
-    if (error) {
-        console.error('Erro ao salvar:', error);
-        alert('Erro ao salvar lançamento.');
-    } else {
-        await fetchData();
-        setFormData({ ...formData, title: '', amount: '' });
-        setIsRecurrent(false);
-    }
-    setLoading(false);
-  };
-
-  const payBill = async (id: number, amount: number) => {
-    setBills(prev => prev.map(bill => bill.id === id ? { ...bill, status: 'paid', amount_paid: amount } : bill));
-
-    const { error } = await supabase
-        .from('bills')
-        .update({ status: 'paid', amount_paid: amount })
-        .eq('id', id);
-        
-    if (error) console.error("Erro ao atualizar", error);
-  };
+  // Lógica para exibir categorias: Se showAllCategories for false, mostra apenas as 5 primeiras
+  const visibleCategories = showAllCategories ? categories : categories.slice(0, 5);
 
   return (
-    <main className="max-w-4xl mx-auto p-4 md:p-8 min-h-screen bg-slate-50 font-sans">
+    <main className="min-h-screen bg-gray-50 p-4 max-w-md mx-auto font-sans">
       
-      {/* HEADER */}
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4 border-b pb-6">
+      {/* --- Cabeçalho Simples --- */}
+      <header className="mb-6 flex justify-between items-center">
         <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Borba Finanças</h1>
-            <p className="text-slate-500 font-medium">Controle Inteligente</p>
+          <h1 className="text-2xl font-bold text-gray-800">Minhas Finanças</h1>
+          <p className="text-sm text-gray-500">Saldo atual: <span className="text-green-600 font-bold">R$ 4.250,00</span></p>
         </div>
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-slate-200">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-600"><ChevronLeft size={20}/></button>
-            <div className="text-sm font-bold w-32 text-center capitalize text-slate-800">{monthLabel}</div>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-600"><ChevronRight size={20}/></button>
+        <div className="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600">
+          U
         </div>
       </header>
 
-      {/* KPIS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-28">
-          <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Previsto</span>
-          <span className="text-2xl font-bold text-slate-700">R$ {totalPrevisto.toFixed(2)}</span>
-        </div>
-        <div className="bg-emerald-50 p-5 rounded-2xl shadow-sm border border-emerald-100 flex flex-col justify-between h-28">
-          <span className="text-emerald-600/70 text-xs font-bold uppercase tracking-wider">Pago</span>
-          <span className="text-2xl font-bold text-emerald-700">R$ {totalPago.toFixed(2)}</span>
-        </div>
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-28 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-16 h-full bg-orange-500/5 skew-x-12"></div>
-          <span className="text-orange-500 text-xs font-bold uppercase tracking-wider">A Pagar</span>
-          <span className="text-2xl font-bold text-orange-600">R$ {aPagar.toFixed(2)}</span>
-        </div>
-      </div>
-
-      {/* FORMULÁRIO */}
-      <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 mb-10 overflow-hidden">
-        <div className="bg-slate-900 p-4 flex items-center gap-3">
-            <div className="bg-blue-500 p-2 rounded-lg text-white">
-                <Plus size={20} strokeWidth={3} />
-            </div>
-            <h3 className="font-bold text-white text-lg">Novo Lançamento</h3>
-        </div>
+      {/* --- Seção Novo Lançamento (Expansível) --- */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 transition-all duration-300">
         
-        <form onSubmit={addBill} className="p-6 flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div className="md:col-span-7 flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Descrição</label>
-                    <input 
-                        value={formData.title}
-                        onChange={e => setFormData({...formData, title: e.target.value})}
-                        placeholder="Ex: Mercado Semanal" 
-                        required 
-                        className="p-3 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700" 
-                    />
-                </div>
-                <div className="md:col-span-5 flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Valor</label>
-                    <div className="relative">
-                        <span className="absolute left-4 top-3.5 text-slate-400 font-bold text-sm">R$</span>
-                        <input 
-                            type="number" step="0.01"
-                            value={formData.amount}
-                            onChange={e => setFormData({...formData, amount: e.target.value})}
-                            placeholder="0,00" required 
-                            className="w-full p-3 pl-10 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-800 text-lg" 
-                        />
-                    </div>
-                </div>
-            </div>
+        {/* Botão que controla a expansão */}
+        <button 
+          onClick={() => setIsFormOpen(!isFormOpen)}
+          className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+        >
+          <span className="font-semibold text-gray-700 flex items-center gap-2">
+            {isFormOpen ? <ChevronUp size={20}/> : <Plus size={20} className="text-blue-600"/>}
+            {isFormOpen ? "Cancelar Lançamento" : "Novo Lançamento"}
+          </span>
+          {/* Indicador visual se está fechado ou aberto */}
+          {!isFormOpen && <ChevronDown size={16} className="text-gray-400"/>}
+        </button>
 
-            <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Categoria</label>
-                <div className="flex flex-wrap gap-2">
-                    {CATEGORIES_UI.map(cat => (
-                        <button
-                            key={cat.id} type="button"
-                            onClick={() => setFormData({...formData, categoryId: cat.id})}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-semibold text-sm transition-all ${
-                                formData.categoryId === cat.id 
-                                ? `${cat.color} ring-2 ring-offset-1 ring-slate-200 scale-105` 
-                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                            }`}
-                        >
-                            {cat.icon} {cat.name}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Vencimento</label>
-                    <input 
-                        type="date" 
-                        value={formData.date}
-                        onChange={e => setFormData({...formData, date: e.target.value})}
-                        required 
-                        className="p-2.5 bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-slate-600 font-medium" 
-                    />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Status Inicial</label>
-                    <div className="flex bg-white rounded-lg p-1 border border-slate-200">
-                        <button 
-                            type="button" onClick={() => setFormData({...formData, status: 'pending'})}
-                            className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'pending' ? 'bg-orange-100 text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Pendente
-                        </button>
-                        <button 
-                            type="button" onClick={() => setFormData({...formData, status: 'paid'})}
-                            className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'paid' ? 'bg-emerald-100 text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Pago
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-start gap-3">
+        {/* Área do Formulário (Só aparece se isFormOpen === true) */}
+        {isFormOpen && (
+          <div className="p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+            
+            {/* Input Valor */}
+            <div>
+              <label className="text-xs text-gray-500 font-semibold uppercase ml-1">Valor</label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">R$</span>
                 <input 
-                    type="checkbox" id="rec" checked={isRecurrent} 
-                    onChange={(e) => setIsRecurrent(e.target.checked)} 
-                    className="mt-1 w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  type="number" 
+                  placeholder="0,00" 
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 placeholder-gray-300"
                 />
-                <div className="flex-1">
-                    <label htmlFor="rec" className="font-bold text-slate-700 cursor-pointer select-none">Repetir lançamento</label>
-                    <p className="text-xs text-slate-400">Criar parcelas automaticamente</p>
-                    
-                    {isRecurrent && (
-                        <div className="mt-3 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
-                            <select 
-                                value={recurrenceType} onChange={(e) => setRecurrenceType(e.target.value)}
-                                className="p-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 focus:outline-none focus:border-blue-400"
-                            >
-                                <option value="monthly">Mensal</option>
-                                <option value="weekly">Semanal</option>
-                            </select>
-                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2">
-                                <input 
-                                    type="number" min="2" max="360" value={installments} 
-                                    onChange={(e) => setInstallments(parseInt(e.target.value))}
-                                    className="w-full p-2 text-sm font-bold text-slate-700 outline-none"
-                                />
-                                <span className="text-xs text-slate-400 font-bold pr-1">x</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
+              </div>
             </div>
 
-            <button type="submit" disabled={loading} className="mt-2 bg-slate-900 hover:bg-slate-800 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex justify-center items-center gap-2">
-                {loading ? 'Salvando...' : <><CheckCircle2 size={20}/> Confirmar Lançamento</>}
+            {/* Input Descrição */}
+            <div>
+              <label className="text-xs text-gray-500 font-semibold uppercase ml-1">Descrição</label>
+              <input 
+                type="text" 
+                placeholder="Ex: Jantar, Gasolina..." 
+                className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              />
+            </div>
+
+            {/* Seleção de Categorias */}
+            <div>
+              <div className="flex justify-between items-center mb-2 ml-1">
+                <label className="text-xs text-gray-500 font-semibold uppercase">Categoria</label>
+                {showAllCategories && (
+                   <button onClick={() => setShowAllCategories(false)} className="text-xs text-blue-600 hover:underline">
+                     Mostrar menos
+                   </button>
+                )}
+              </div>
+
+              {/* Container de Scroll ou Grid */}
+              <div className={`flex gap-3 ${showAllCategories ? 'flex-wrap' : 'overflow-x-auto pb-2 snap-x'}`}>
+                
+                {visibleCategories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap snap-start
+                      ${selectedCategory === cat.id 
+                        ? `${cat.color} ring-2 ring-offset-1 ring-gray-200 font-bold shadow-sm` 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}
+                    `}
+                  >
+                    {cat.icon}
+                    <span>{cat.label}</span>
+                  </button>
+                ))}
+
+                {/* Botão "Mais Categorias" (Só aparece se NÃO estiver mostrando tudo) */}
+                {!showAllCategories && (
+                  <button
+                    onClick={() => setShowAllCategories(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 whitespace-nowrap"
+                  >
+                    <MoreHorizontal size={18} />
+                    <span>Mais...</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Botão Salvar */}
+            <button className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-transform active:scale-95 mt-2">
+              Adicionar Lançamento
             </button>
-        </form>
-      </div>
-
-      {/* LISTAGEM */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-slate-800 px-1 flex items-center gap-2">
-            <Wallet size={20} className="text-slate-400"/>
-            Movimentações de {monthLabel}
-        </h2>
-        
-        {loading && <div className="text-center p-8 text-slate-400 animate-pulse">Carregando dados...</div>}
-        
-        {!loading && bills.length === 0 && (
-            <div className="text-center py-16 px-4 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Calendar className="text-slate-300" size={32} />
-                </div>
-                <p className="text-slate-500 font-medium">Nenhum lançamento neste mês.</p>
-            </div>
+          </div>
         )}
+      </section>
 
-        <div className="flex flex-col gap-3">
-            {bills.map((bill) => {
-                const catId = bill.category_id; 
-                const catUI = CATEGORIES_UI.find(c => c.id === catId) || CATEGORIES_UI[0];
-
-                return (
-                    <div key={bill.id} className="group bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div 
-                                onClick={() => bill.status !== 'paid' && payBill(bill.id, bill.amount_estimated)}
-                                className={`cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-all ${bill.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500'}`}
-                            >
-                                {bill.status === 'paid' ? <CheckCircle2 size={24} /> : catUI.icon}
-                            </div>
-                            <div>
-                                <h4 className={`font-bold text-base ${bill.status === 'paid' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
-                                    {bill.title}
-                                </h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs font-medium text-slate-400">{new Date(bill.due_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
-                                    {bill.total_installments > 1 && (
-                                        <span className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold flex items-center gap-1">
-                                            <Repeat size={10} /> {bill.current_installment}/{bill.total_installments}
-                                        </span>
-                                    )}
-                                     <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded font-medium">
-                                        {bill.categories?.name || catUI.name}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                             <div className={`text-lg font-bold ${bill.status === 'paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                                - R$ {bill.status === 'paid' ? bill.amount_paid?.toFixed(2) : bill.amount_estimated?.toFixed(2)}
-                             </div>
-                             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${bill.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-500'}`}>
-                                {bill.status === 'paid' ? 'Pago' : 'Aberto'}
-                             </span>
-                        </div>
-                    </div>
-                )
-            })}
+      {/* --- Lista de Últimos Lançamentos (Extrato) --- */}
+      <section>
+        <h2 className="text-lg font-bold text-gray-800 mb-4 px-1">Últimas Movimentações</h2>
+        <div className="space-y-3">
+          {transactions.map((t) => (
+            <div key={t.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                  {/* Ícone dinâmico simples baseado na primeira letra da categoria */}
+                  <span className="text-lg font-bold">{t.cat.charAt(0)}</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">{t.desc}</p>
+                  <p className="text-xs text-gray-400">{t.cat} • {t.date}</p>
+                </div>
+              </div>
+              <span className={`font-bold ${t.val < 0 ? 'text-gray-800' : 'text-green-600'}`}>
+                {t.val < 0 ? `- R$ ${Math.abs(t.val).toFixed(2)}` : `+ R$ ${t.val.toFixed(2)}`}
+              </span>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
+
     </main>
   );
 }
