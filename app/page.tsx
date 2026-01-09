@@ -7,7 +7,7 @@ import {
   CheckCircle2, Repeat, Wallet, Car, Utensils, 
   Home, ShoppingBag, TrendingUp, HeartPulse, 
   GraduationCap, Zap, Plane, Gift, MoreHorizontal,
-  ChevronDown, ChevronUp, Trash2 // Importei a lixeira (Trash2)
+  ChevronDown, ChevronUp, Trash2 
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO VISUAL DAS CATEGORIAS ---
@@ -35,7 +35,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   
-  // Estado para controlar expansão das categorias e do formulário
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -149,11 +148,9 @@ export default function Dashboard() {
     if (error) console.error("Erro ao atualizar", error);
   };
 
-  // --- NOVA FUNÇÃO DE EXCLUIR ---
   const deleteBill = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
 
-    // Remove visualmente primeiro (Optimistic UI)
     setBills(prev => prev.filter(bill => bill.id !== id));
 
     const { error } = await supabase
@@ -164,7 +161,7 @@ export default function Dashboard() {
     if (error) {
       console.error("Erro ao excluir:", error);
       alert("Erro ao excluir.");
-      fetchData(); // Recarrega se der erro
+      fetchData(); 
     }
   };
 
@@ -205,7 +202,6 @@ export default function Dashboard() {
 
       {/* FORMULÁRIO COM TOGGLE */}
       <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 mb-10 overflow-hidden transition-all duration-300">
-        
         <div 
           onClick={() => setIsFormOpen(!isFormOpen)}
           className="bg-slate-900 p-4 flex items-center justify-between cursor-pointer group hover:bg-slate-800 transition-colors"
@@ -216,7 +212,7 @@ export default function Dashboard() {
                 </div>
                 <h3 className="font-bold text-white text-lg">Novo Lançamento</h3>
             </div>
-            <button className="text-slate-400 group-hover:text-white transition-colors p-1">
+            <button className="text-white p-1">
                 {isFormOpen ? <ChevronUp size={24}/> : <ChevronDown size={24}/>}
             </button>
         </div>
@@ -380,51 +376,55 @@ export default function Dashboard() {
                 const catUI = CATEGORIES_UI.find(c => c.id === catId) || CATEGORIES_UI[0];
 
                 return (
-                    <div key={bill.id} className="group bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-between">
-                        {/* LADO ESQUERDO: Ícone e Descrição */}
-                        <div className="flex items-center gap-4">
+                    <div key={bill.id} className="group bg-white p-3 md:p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-between gap-3">
+                        
+                        {/* LADO ESQUERDO: Ícone + Textos (Flex-1 para ocupar espaço disponível) */}
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div 
                                 onClick={() => bill.status !== 'paid' && payBill(bill.id, bill.amount_estimated)}
-                                className={`cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-all ${bill.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500'}`}
+                                className={`shrink-0 cursor-pointer w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${bill.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500'}`}
                             >
-                                {bill.status === 'paid' ? <CheckCircle2 size={24} /> : catUI.icon}
+                                {bill.status === 'paid' ? <CheckCircle2 size={20} /> : catUI.icon}
                             </div>
-                            <div>
-                                <h4 className={`font-bold text-base ${bill.status === 'paid' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
+                            
+                            {/* Conteúdo de Texto com min-w-0 para permitir truncate */}
+                            <div className="min-w-0 flex-1">
+                                <h4 className={`font-bold text-sm md:text-base truncate ${bill.status === 'paid' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
                                     {bill.title}
                                 </h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs font-medium text-slate-400">{new Date(bill.due_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                    <span className="text-xs font-medium text-slate-400 whitespace-nowrap">{new Date(bill.due_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
                                     {bill.total_installments > 1 && (
-                                        <span className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold flex items-center gap-1">
+                                        <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold flex items-center gap-1 whitespace-nowrap">
                                             <Repeat size={10} /> {bill.current_installment}/{bill.total_installments}
                                         </span>
                                     )}
-                                     <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded font-medium">
+                                     <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-medium truncate max-w-[100px] md:max-w-none">
                                         {bill.categories?.name || catUI.name}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* LADO DIREITO: Valor, Status e Botão Excluir */}
-                        <div className="flex items-center gap-4">
+                        {/* LADO DIREITO: Valor + Lixeira (Shrink-0 para NÃO ENCOLHER) */}
+                        <div className="flex items-center gap-2 md:gap-4 shrink-0">
                             <div className="text-right">
-                                <div className={`text-lg font-bold ${bill.status === 'paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                {/* Fonte reduzida no mobile (text-base) e maior no desktop (text-lg) */}
+                                <div className={`text-base md:text-lg font-bold whitespace-nowrap ${bill.status === 'paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
                                     - R$ {bill.status === 'paid' ? bill.amount_paid?.toFixed(2) : bill.amount_estimated?.toFixed(2)}
                                 </div>
-                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${bill.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-500'}`}>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${bill.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-500'}`}>
                                     {bill.status === 'paid' ? 'Pago' : 'Aberto'}
                                 </span>
                             </div>
                             
-                            {/* BOTÃO EXCLUIR */}
+                            {/* Botão de Lixeira fixo à direita */}
                             <button 
                                 onClick={() => deleteBill(bill.id)}
-                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-all shrink-0"
                                 title="Excluir lançamento"
                             >
-                                <Trash2 size={20} />
+                                <Trash2 size={18} />
                             </button>
                         </div>
                     </div>
