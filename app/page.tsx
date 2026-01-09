@@ -1,20 +1,29 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { createClient } from '../utils/supabase/client'; // Ajustado para o seu caminho relativo
+import { createClient } from '../utils/supabase/client';
 import { 
   ChevronLeft, ChevronRight, Plus, Calendar, 
   CheckCircle2, Repeat, Wallet, Car, Utensils, 
-  Home, ShoppingBag, TrendingUp
+  Home, ShoppingBag, TrendingUp, HeartPulse, 
+  GraduationCap, Zap, Plane, Gift, MoreHorizontal 
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO VISUAL DAS CATEGORIAS ---
 const CATEGORIES_UI = [
+  // Principais
   { id: 1, name: 'Moradia', icon: <Home size={18} />, color: 'bg-purple-100 text-purple-600 border-purple-200' },
   { id: 2, name: 'Alimentação', icon: <Utensils size={18} />, color: 'bg-orange-100 text-orange-600 border-orange-200' },
   { id: 3, name: 'Transporte', icon: <Car size={18} />, color: 'bg-blue-100 text-blue-600 border-blue-200' },
   { id: 4, name: 'Compras', icon: <ShoppingBag size={18} />, color: 'bg-pink-100 text-pink-600 border-pink-200' },
+  
+  // Secundárias (Inicialmente Ocultas)
   { id: 5, name: 'Investimento', icon: <TrendingUp size={18} />, color: 'bg-emerald-100 text-emerald-600 border-emerald-200' },
+  { id: 6, name: 'Saúde', icon: <HeartPulse size={18} />, color: 'bg-red-100 text-red-600 border-red-200' },
+  { id: 7, name: 'Educação', icon: <GraduationCap size={18} />, color: 'bg-yellow-100 text-yellow-600 border-yellow-200' },
+  { id: 8, name: 'Contas Fixas', icon: <Zap size={18} />, color: 'bg-gray-100 text-gray-600 border-gray-200' },
+  { id: 9, name: 'Viagem', icon: <Plane size={18} />, color: 'bg-sky-100 text-sky-600 border-sky-200' },
+  { id: 10, name: 'Lazer', icon: <Gift size={18} />, color: 'bg-indigo-100 text-indigo-600 border-indigo-200' },
 ];
 
 export default function Dashboard() {
@@ -24,6 +33,9 @@ export default function Dashboard() {
   const [bills, setBills] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Estado para controlar expansão das categorias
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   // Estados do Formulário Novo
   const [formData, setFormData] = useState({
@@ -44,7 +56,6 @@ export default function Dashboard() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
-    // Ajuste seguro para datas UTC/Local
     const startOfMonth = new Date(year, month, 1).toISOString();
     const endOfMonth = new Date(year, month + 1, 0).toISOString();
 
@@ -135,6 +146,10 @@ export default function Dashboard() {
     if (error) console.error("Erro ao atualizar", error);
   };
 
+  // --- LÓGICA DE EXIBIÇÃO DAS CATEGORIAS ---
+  // Se estiver fechado, mostra só as 4 primeiras. Se aberto, mostra tudo.
+  const visibleCategories = showAllCategories ? CATEGORIES_UI : CATEGORIES_UI.slice(0, 4);
+
   return (
     <main className="max-w-4xl mx-auto p-4 md:p-8 min-h-screen bg-slate-50 font-sans">
       
@@ -205,9 +220,17 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Categoria</label>
-                <div className="flex flex-wrap gap-2">
-                    {CATEGORIES_UI.map(cat => (
+                <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Categoria</label>
+                    {showAllCategories && (
+                         <button type="button" onClick={() => setShowAllCategories(false)} className="text-xs font-bold text-blue-600 hover:underline">
+                            Mostrar menos
+                         </button>
+                    )}
+                </div>
+                
+                <div className="flex flex-wrap gap-2 transition-all">
+                    {visibleCategories.map(cat => (
                         <button
                             key={cat.id} type="button"
                             onClick={() => setFormData({...formData, categoryId: cat.id})}
@@ -220,6 +243,18 @@ export default function Dashboard() {
                             {cat.icon} {cat.name}
                         </button>
                     ))}
+
+                    {/* BOTÃO MAIS CATEGORIAS */}
+                    {!showAllCategories && (
+                        <button 
+                            type="button"
+                            onClick={() => setShowAllCategories(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-500 font-semibold text-sm hover:bg-slate-100 hover:border-slate-400 transition-all"
+                        >
+                            <MoreHorizontal size={18} />
+                            Mais...
+                        </button>
+                    )}
                 </div>
             </div>
 
