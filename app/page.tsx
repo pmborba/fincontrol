@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { createClient } from '@/utils/supabase/client'; // Seu import original
+import { createClient } from '../utils/supabase/client'; // Ajustado para o seu caminho relativo
 import { 
   ChevronLeft, ChevronRight, Plus, Calendar, 
   CheckCircle2, Repeat, Wallet, Car, Utensils, 
@@ -9,8 +9,6 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO VISUAL DAS CATEGORIAS ---
-// Nota: O ID aqui deve bater com o ID da sua tabela 'categories' no Supabase se possível.
-// Se não bater, o ícone pode não aparecer corretamente na listagem, mas o visual funciona.
 const CATEGORIES_UI = [
   { id: 1, name: 'Moradia', icon: <Home size={18} />, color: 'bg-purple-100 text-purple-600 border-purple-200' },
   { id: 2, name: 'Alimentação', icon: <Utensils size={18} />, color: 'bg-orange-100 text-orange-600 border-orange-200' },
@@ -32,7 +30,7 @@ export default function Dashboard() {
     title: '',
     amount: '',
     date: new Date().toISOString().split('T')[0],
-    categoryId: 1, // ID numérico padrão
+    categoryId: 1,
     status: 'pending' 
   });
 
@@ -40,20 +38,26 @@ export default function Dashboard() {
   const [recurrenceType, setRecurrenceType] = useState('monthly');
   const [installments, setInstallments] = useState(2);
 
-  // --- BUSCAR DADOS (Manteve sua lógica original) ---
+  // --- BUSCAR DADOS ---
   const fetchData = async () => {
     setLoading(true);
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
+    
+    // Ajuste seguro para datas UTC/Local
     const startOfMonth = new Date(year, month, 1).toISOString();
     const endOfMonth = new Date(year, month + 1, 0).toISOString();
 
-    const { data: billsData } = await supabase
+    const { data: billsData, error } = await supabase
       .from('bills')
-      .select('*, categories(name)') // Trazendo o nome da categoria junto
+      .select('*, categories(name)')
       .gte('due_date', startOfMonth)
       .lte('due_date', endOfMonth)
       .order('due_date', { ascending: true });
+
+    if (error) {
+        console.error("Erro ao buscar dados:", error);
+    }
 
     if (billsData) setBills(billsData);
     setLoading(false);
@@ -79,7 +83,6 @@ export default function Dashboard() {
     setCurrentDate(newDate);
   };
 
-  // Função Atualizada para salvar no Supabase
   const addBill = async (e: any) => {
     e.preventDefault();
     setLoading(true);
@@ -87,7 +90,6 @@ export default function Dashboard() {
     const loopCount = isRecurrent ? installments : 1;
     const billsToInsert = [];
     let baseDate = new Date(formData.date);
-    // Ajuste fuso horário
     baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
 
     for (let i = 0; i < loopCount; i++) {
@@ -106,7 +108,6 @@ export default function Dashboard() {
             total_installments: loopCount,
             current_installment: i + 1,
             category_id: formData.categoryId,
-            // Adicione user_id aqui se sua tabela exigir RLS (Row Level Security)
         });
     }
 
@@ -116,16 +117,14 @@ export default function Dashboard() {
         console.error('Erro ao salvar:', error);
         alert('Erro ao salvar lançamento.');
     } else {
-        await fetchData(); // Recarrega a lista do banco
+        await fetchData();
         setFormData({ ...formData, title: '', amount: '' });
         setIsRecurrent(false);
     }
     setLoading(false);
   };
 
-  // Função para Pagar/Atualizar no Supabase
   const payBill = async (id: number, amount: number) => {
-    // Otimista: atualiza na tela antes do banco
     setBills(prev => prev.map(bill => bill.id === id ? { ...bill, status: 'paid', amount_paid: amount } : bill));
 
     const { error } = await supabase
@@ -169,7 +168,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* FORMULÁRIO (Conectado ao addBill do Supabase) */}
+      {/* FORMULÁRIO */}
       <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 mb-10 overflow-hidden">
         <div className="bg-slate-900 p-4 flex items-center gap-3">
             <div className="bg-blue-500 p-2 rounded-lg text-white">
@@ -206,4 +205,154 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col gap-2">
-                <label className="text-xs font-
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Categoria</label>
+                <div className="flex flex-wrap gap-2">
+                    {CATEGORIES_UI.map(cat => (
+                        <button
+                            key={cat.id} type="button"
+                            onClick={() => setFormData({...formData, categoryId: cat.id})}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-semibold text-sm transition-all ${
+                                formData.categoryId === cat.id 
+                                ? `${cat.color} ring-2 ring-offset-1 ring-slate-200 scale-105` 
+                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                            }`}
+                        >
+                            {cat.icon} {cat.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Vencimento</label>
+                    <input 
+                        type="date" 
+                        value={formData.date}
+                        onChange={e => setFormData({...formData, date: e.target.value})}
+                        required 
+                        className="p-2.5 bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-slate-600 font-medium" 
+                    />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Status Inicial</label>
+                    <div className="flex bg-white rounded-lg p-1 border border-slate-200">
+                        <button 
+                            type="button" onClick={() => setFormData({...formData, status: 'pending'})}
+                            className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'pending' ? 'bg-orange-100 text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Pendente
+                        </button>
+                        <button 
+                            type="button" onClick={() => setFormData({...formData, status: 'paid'})}
+                            className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'paid' ? 'bg-emerald-100 text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Pago
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+                <input 
+                    type="checkbox" id="rec" checked={isRecurrent} 
+                    onChange={(e) => setIsRecurrent(e.target.checked)} 
+                    className="mt-1 w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <div className="flex-1">
+                    <label htmlFor="rec" className="font-bold text-slate-700 cursor-pointer select-none">Repetir lançamento</label>
+                    <p className="text-xs text-slate-400">Criar parcelas automaticamente</p>
+                    
+                    {isRecurrent && (
+                        <div className="mt-3 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
+                            <select 
+                                value={recurrenceType} onChange={(e) => setRecurrenceType(e.target.value)}
+                                className="p-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 focus:outline-none focus:border-blue-400"
+                            >
+                                <option value="monthly">Mensal</option>
+                                <option value="weekly">Semanal</option>
+                            </select>
+                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2">
+                                <input 
+                                    type="number" min="2" max="360" value={installments} 
+                                    onChange={(e) => setInstallments(parseInt(e.target.value))}
+                                    className="w-full p-2 text-sm font-bold text-slate-700 outline-none"
+                                />
+                                <span className="text-xs text-slate-400 font-bold pr-1">x</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="mt-2 bg-slate-900 hover:bg-slate-800 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex justify-center items-center gap-2">
+                {loading ? 'Salvando...' : <><CheckCircle2 size={20}/> Confirmar Lançamento</>}
+            </button>
+        </form>
+      </div>
+
+      {/* LISTAGEM */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-slate-800 px-1 flex items-center gap-2">
+            <Wallet size={20} className="text-slate-400"/>
+            Movimentações de {monthLabel}
+        </h2>
+        
+        {loading && <div className="text-center p-8 text-slate-400 animate-pulse">Carregando dados...</div>}
+        
+        {!loading && bills.length === 0 && (
+            <div className="text-center py-16 px-4 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Calendar className="text-slate-300" size={32} />
+                </div>
+                <p className="text-slate-500 font-medium">Nenhum lançamento neste mês.</p>
+            </div>
+        )}
+
+        <div className="flex flex-col gap-3">
+            {bills.map((bill) => {
+                const catId = bill.category_id; 
+                const catUI = CATEGORIES_UI.find(c => c.id === catId) || CATEGORIES_UI[0];
+
+                return (
+                    <div key={bill.id} className="group bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div 
+                                onClick={() => bill.status !== 'paid' && payBill(bill.id, bill.amount_estimated)}
+                                className={`cursor-pointer w-12 h-12 rounded-full flex items-center justify-center transition-all ${bill.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500'}`}
+                            >
+                                {bill.status === 'paid' ? <CheckCircle2 size={24} /> : catUI.icon}
+                            </div>
+                            <div>
+                                <h4 className={`font-bold text-base ${bill.status === 'paid' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
+                                    {bill.title}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-xs font-medium text-slate-400">{new Date(bill.due_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
+                                    {bill.total_installments > 1 && (
+                                        <span className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold flex items-center gap-1">
+                                            <Repeat size={10} /> {bill.current_installment}/{bill.total_installments}
+                                        </span>
+                                    )}
+                                     <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded font-medium">
+                                        {bill.categories?.name || catUI.name}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                             <div className={`text-lg font-bold ${bill.status === 'paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                - R$ {bill.status === 'paid' ? bill.amount_paid?.toFixed(2) : bill.amount_estimated?.toFixed(2)}
+                             </div>
+                             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${bill.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-500'}`}>
+                                {bill.status === 'paid' ? 'Pago' : 'Aberto'}
+                             </span>
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+      </div>
+    </main>
+  );
+}
