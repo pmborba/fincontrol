@@ -6,7 +6,8 @@ import {
   ChevronLeft, ChevronRight, Plus, Calendar, 
   CheckCircle2, Repeat, Wallet, Car, Utensils, 
   Home, ShoppingBag, TrendingUp, HeartPulse, 
-  GraduationCap, Zap, Plane, Gift, MoreHorizontal 
+  GraduationCap, Zap, Plane, Gift, MoreHorizontal,
+  ChevronDown, ChevronUp // Importei os ícones das setas
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO VISUAL DAS CATEGORIAS ---
@@ -34,8 +35,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   
-  // Estado para controlar expansão das categorias
+  // Estado para controlar expansão das categorias e do formulário
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false); // Começa fechado (mude para true se quiser aberto)
 
   // Estados do Formulário Novo
   const [formData, setFormData] = useState({
@@ -131,6 +133,7 @@ export default function Dashboard() {
         await fetchData();
         setFormData({ ...formData, title: '', amount: '' });
         setIsRecurrent(false);
+        setIsFormOpen(false); // Fecha o formulário após salvar com sucesso
     }
     setLoading(false);
   };
@@ -146,8 +149,6 @@ export default function Dashboard() {
     if (error) console.error("Erro ao atualizar", error);
   };
 
-  // --- LÓGICA DE EXIBIÇÃO DAS CATEGORIAS ---
-  // Se estiver fechado, mostra só as 4 primeiras. Se aberto, mostra tudo.
   const visibleCategories = showAllCategories ? CATEGORIES_UI : CATEGORIES_UI.slice(0, 4);
 
   return (
@@ -183,147 +184,160 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* FORMULÁRIO */}
-      <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 mb-10 overflow-hidden">
-        <div className="bg-slate-900 p-4 flex items-center gap-3">
-            <div className="bg-blue-500 p-2 rounded-lg text-white">
-                <Plus size={20} strokeWidth={3} />
+      {/* FORMULÁRIO COM TOGGLE */}
+      <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 mb-10 overflow-hidden transition-all duration-300">
+        
+        {/* Cabeçalho do Formulário (Clicável) */}
+        <div 
+          onClick={() => setIsFormOpen(!isFormOpen)}
+          className="bg-slate-900 p-4 flex items-center justify-between cursor-pointer group hover:bg-slate-800 transition-colors"
+        >
+            <div className="flex items-center gap-3">
+                <div className="bg-blue-500 p-2 rounded-lg text-white">
+                    <Plus size={20} strokeWidth={3} />
+                </div>
+                <h3 className="font-bold text-white text-lg">Novo Lançamento</h3>
             </div>
-            <h3 className="font-bold text-white text-lg">Novo Lançamento</h3>
+            {/* Botão de Toggle */}
+            <button className="text-slate-400 group-hover:text-white transition-colors p-1">
+                {isFormOpen ? <ChevronUp size={24}/> : <ChevronDown size={24}/>}
+            </button>
         </div>
         
-        <form onSubmit={addBill} className="p-6 flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div className="md:col-span-7 flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Descrição</label>
-                    <input 
-                        value={formData.title}
-                        onChange={e => setFormData({...formData, title: e.target.value})}
-                        placeholder="Ex: Mercado Semanal" 
-                        required 
-                        className="p-3 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700" 
-                    />
-                </div>
-                <div className="md:col-span-5 flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Valor</label>
-                    <div className="relative">
-                        <span className="absolute left-4 top-3.5 text-slate-400 font-bold text-sm">R$</span>
+        {/* Corpo do Formulário (Condicional) */}
+        {isFormOpen && (
+            <form onSubmit={addBill} className="p-6 flex flex-col gap-6 animate-in slide-in-from-top-2 duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-7 flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Descrição</label>
                         <input 
-                            type="number" step="0.01"
-                            value={formData.amount}
-                            onChange={e => setFormData({...formData, amount: e.target.value})}
-                            placeholder="0,00" required 
-                            className="w-full p-3 pl-10 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-800 text-lg" 
+                            value={formData.title}
+                            onChange={e => setFormData({...formData, title: e.target.value})}
+                            placeholder="Ex: Mercado Semanal" 
+                            required 
+                            className="p-3 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700" 
                         />
                     </div>
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Categoria</label>
-                    {showAllCategories && (
-                         <button type="button" onClick={() => setShowAllCategories(false)} className="text-xs font-bold text-blue-600 hover:underline">
-                            Mostrar menos
-                         </button>
-                    )}
-                </div>
-                
-                <div className="flex flex-wrap gap-2 transition-all">
-                    {visibleCategories.map(cat => (
-                        <button
-                            key={cat.id} type="button"
-                            onClick={() => setFormData({...formData, categoryId: cat.id})}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-semibold text-sm transition-all ${
-                                formData.categoryId === cat.id 
-                                ? `${cat.color} ring-2 ring-offset-1 ring-slate-200 scale-105` 
-                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                            }`}
-                        >
-                            {cat.icon} {cat.name}
-                        </button>
-                    ))}
-
-                    {/* BOTÃO MAIS CATEGORIAS */}
-                    {!showAllCategories && (
-                        <button 
-                            type="button"
-                            onClick={() => setShowAllCategories(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-500 font-semibold text-sm hover:bg-slate-100 hover:border-slate-400 transition-all"
-                        >
-                            <MoreHorizontal size={18} />
-                            Mais...
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Vencimento</label>
-                    <input 
-                        type="date" 
-                        value={formData.date}
-                        onChange={e => setFormData({...formData, date: e.target.value})}
-                        required 
-                        className="p-2.5 bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-slate-600 font-medium" 
-                    />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Status Inicial</label>
-                    <div className="flex bg-white rounded-lg p-1 border border-slate-200">
-                        <button 
-                            type="button" onClick={() => setFormData({...formData, status: 'pending'})}
-                            className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'pending' ? 'bg-orange-100 text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Pendente
-                        </button>
-                        <button 
-                            type="button" onClick={() => setFormData({...formData, status: 'paid'})}
-                            className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'paid' ? 'bg-emerald-100 text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Pago
-                        </button>
+                    <div className="md:col-span-5 flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Valor</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-3.5 text-slate-400 font-bold text-sm">R$</span>
+                            <input 
+                                type="number" step="0.01"
+                                value={formData.amount}
+                                onChange={e => setFormData({...formData, amount: e.target.value})}
+                                placeholder="0,00" required 
+                                className="w-full p-3 pl-10 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-800 text-lg" 
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="flex items-start gap-3">
-                <input 
-                    type="checkbox" id="rec" checked={isRecurrent} 
-                    onChange={(e) => setIsRecurrent(e.target.checked)} 
-                    className="mt-1 w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                />
-                <div className="flex-1">
-                    <label htmlFor="rec" className="font-bold text-slate-700 cursor-pointer select-none">Repetir lançamento</label>
-                    <p className="text-xs text-slate-400">Criar parcelas automaticamente</p>
+                <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Categoria</label>
+                        {showAllCategories && (
+                            <button type="button" onClick={() => setShowAllCategories(false)} className="text-xs font-bold text-blue-600 hover:underline">
+                                Mostrar menos
+                            </button>
+                        )}
+                    </div>
                     
-                    {isRecurrent && (
-                        <div className="mt-3 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
-                            <select 
-                                value={recurrenceType} onChange={(e) => setRecurrenceType(e.target.value)}
-                                className="p-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 focus:outline-none focus:border-blue-400"
+                    <div className="flex flex-wrap gap-2 transition-all">
+                        {visibleCategories.map(cat => (
+                            <button
+                                key={cat.id} type="button"
+                                onClick={() => setFormData({...formData, categoryId: cat.id})}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-semibold text-sm transition-all ${
+                                    formData.categoryId === cat.id 
+                                    ? `${cat.color} ring-2 ring-offset-1 ring-slate-200 scale-105` 
+                                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                }`}
                             >
-                                <option value="monthly">Mensal</option>
-                                <option value="weekly">Semanal</option>
-                            </select>
-                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2">
-                                <input 
-                                    type="number" min="2" max="360" value={installments} 
-                                    onChange={(e) => setInstallments(parseInt(e.target.value))}
-                                    className="w-full p-2 text-sm font-bold text-slate-700 outline-none"
-                                />
-                                <span className="text-xs text-slate-400 font-bold pr-1">x</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+                                {cat.icon} {cat.name}
+                            </button>
+                        ))}
 
-            <button type="submit" disabled={loading} className="mt-2 bg-slate-900 hover:bg-slate-800 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex justify-center items-center gap-2">
-                {loading ? 'Salvando...' : <><CheckCircle2 size={20}/> Confirmar Lançamento</>}
-            </button>
-        </form>
+                        {!showAllCategories && (
+                            <button 
+                                type="button"
+                                onClick={() => setShowAllCategories(true)}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-500 font-semibold text-sm hover:bg-slate-100 hover:border-slate-400 transition-all"
+                            >
+                                <MoreHorizontal size={18} />
+                                Mais...
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Vencimento</label>
+                        <input 
+                            type="date" 
+                            value={formData.date}
+                            onChange={e => setFormData({...formData, date: e.target.value})}
+                            required 
+                            className="p-2.5 bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-slate-600 font-medium" 
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Status Inicial</label>
+                        <div className="flex bg-white rounded-lg p-1 border border-slate-200">
+                            <button 
+                                type="button" onClick={() => setFormData({...formData, status: 'pending'})}
+                                className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'pending' ? 'bg-orange-100 text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Pendente
+                            </button>
+                            <button 
+                                type="button" onClick={() => setFormData({...formData, status: 'paid'})}
+                                className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${formData.status === 'paid' ? 'bg-emerald-100 text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Pago
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                    <input 
+                        type="checkbox" id="rec" checked={isRecurrent} 
+                        onChange={(e) => setIsRecurrent(e.target.checked)} 
+                        className="mt-1 w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                        <label htmlFor="rec" className="font-bold text-slate-700 cursor-pointer select-none">Repetir lançamento</label>
+                        <p className="text-xs text-slate-400">Criar parcelas automaticamente</p>
+                        
+                        {isRecurrent && (
+                            <div className="mt-3 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
+                                <select 
+                                    value={recurrenceType} onChange={(e) => setRecurrenceType(e.target.value)}
+                                    className="p-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 focus:outline-none focus:border-blue-400"
+                                >
+                                    <option value="monthly">Mensal</option>
+                                    <option value="weekly">Semanal</option>
+                                </select>
+                                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2">
+                                    <input 
+                                        type="number" min="2" max="360" value={installments} 
+                                        onChange={(e) => setInstallments(parseInt(e.target.value))}
+                                        className="w-full p-2 text-sm font-bold text-slate-700 outline-none"
+                                    />
+                                    <span className="text-xs text-slate-400 font-bold pr-1">x</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <button type="submit" disabled={loading} className="mt-2 bg-slate-900 hover:bg-slate-800 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex justify-center items-center gap-2">
+                    {loading ? 'Salvando...' : <><CheckCircle2 size={20}/> Confirmar Lançamento</>}
+                </button>
+            </form>
+        )}
       </div>
 
       {/* LISTAGEM */}
