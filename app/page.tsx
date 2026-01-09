@@ -7,7 +7,7 @@ import {
   CheckCircle2, Repeat, Wallet, Car, Utensils, 
   Home, ShoppingBag, TrendingUp, HeartPulse, 
   GraduationCap, Zap, Plane, Gift, MoreHorizontal,
-  ChevronDown, ChevronUp // Importei os ícones das setas
+  ChevronDown, ChevronUp, Trash2 // Importei a lixeira (Trash2)
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO VISUAL DAS CATEGORIAS ---
@@ -37,7 +37,7 @@ export default function Dashboard() {
   
   // Estado para controlar expansão das categorias e do formulário
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false); // Começa fechado (mude para true se quiser aberto)
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   // Estados do Formulário Novo
   const [formData, setFormData] = useState({
@@ -133,7 +133,7 @@ export default function Dashboard() {
         await fetchData();
         setFormData({ ...formData, title: '', amount: '' });
         setIsRecurrent(false);
-        setIsFormOpen(false); // Fecha o formulário após salvar com sucesso
+        setIsFormOpen(false);
     }
     setLoading(false);
   };
@@ -147,6 +147,25 @@ export default function Dashboard() {
         .eq('id', id);
         
     if (error) console.error("Erro ao atualizar", error);
+  };
+
+  // --- NOVA FUNÇÃO DE EXCLUIR ---
+  const deleteBill = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
+
+    // Remove visualmente primeiro (Optimistic UI)
+    setBills(prev => prev.filter(bill => bill.id !== id));
+
+    const { error } = await supabase
+      .from('bills')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error("Erro ao excluir:", error);
+      alert("Erro ao excluir.");
+      fetchData(); // Recarrega se der erro
+    }
   };
 
   const visibleCategories = showAllCategories ? CATEGORIES_UI : CATEGORIES_UI.slice(0, 4);
@@ -187,7 +206,6 @@ export default function Dashboard() {
       {/* FORMULÁRIO COM TOGGLE */}
       <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 mb-10 overflow-hidden transition-all duration-300">
         
-        {/* Cabeçalho do Formulário (Clicável) */}
         <div 
           onClick={() => setIsFormOpen(!isFormOpen)}
           className="bg-slate-900 p-4 flex items-center justify-between cursor-pointer group hover:bg-slate-800 transition-colors"
@@ -198,13 +216,11 @@ export default function Dashboard() {
                 </div>
                 <h3 className="font-bold text-white text-lg">Novo Lançamento</h3>
             </div>
-            {/* Botão de Toggle */}
             <button className="text-slate-400 group-hover:text-white transition-colors p-1">
                 {isFormOpen ? <ChevronUp size={24}/> : <ChevronDown size={24}/>}
             </button>
         </div>
         
-        {/* Corpo do Formulário (Condicional) */}
         {isFormOpen && (
             <form onSubmit={addBill} className="p-6 flex flex-col gap-6 animate-in slide-in-from-top-2 duration-200">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -365,6 +381,7 @@ export default function Dashboard() {
 
                 return (
                     <div key={bill.id} className="group bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-between">
+                        {/* LADO ESQUERDO: Ícone e Descrição */}
                         <div className="flex items-center gap-4">
                             <div 
                                 onClick={() => bill.status !== 'paid' && payBill(bill.id, bill.amount_estimated)}
@@ -389,13 +406,26 @@ export default function Dashboard() {
                                 </div>
                             </div>
                         </div>
-                        <div className="text-right">
-                             <div className={`text-lg font-bold ${bill.status === 'paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                                - R$ {bill.status === 'paid' ? bill.amount_paid?.toFixed(2) : bill.amount_estimated?.toFixed(2)}
-                             </div>
-                             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${bill.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-500'}`}>
-                                {bill.status === 'paid' ? 'Pago' : 'Aberto'}
-                             </span>
+
+                        {/* LADO DIREITO: Valor, Status e Botão Excluir */}
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <div className={`text-lg font-bold ${bill.status === 'paid' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                    - R$ {bill.status === 'paid' ? bill.amount_paid?.toFixed(2) : bill.amount_estimated?.toFixed(2)}
+                                </div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${bill.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-500'}`}>
+                                    {bill.status === 'paid' ? 'Pago' : 'Aberto'}
+                                </span>
+                            </div>
+                            
+                            {/* BOTÃO EXCLUIR */}
+                            <button 
+                                onClick={() => deleteBill(bill.id)}
+                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                title="Excluir lançamento"
+                            >
+                                <Trash2 size={20} />
+                            </button>
                         </div>
                     </div>
                 )
