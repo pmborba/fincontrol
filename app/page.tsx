@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
-import { CheckCircle2, AlertCircle, PlusCircle, ChevronLeft, ChevronRight, Calendar, Repeat } from 'lucide-react';
+import { createClient } from '../utils/supabase/client';
+import { CheckCircle2, PlusCircle, ChevronLeft, ChevronRight, Calendar, Repeat } from 'lucide-react';
 
 export default function Dashboard() {
   const supabase = createClient();
