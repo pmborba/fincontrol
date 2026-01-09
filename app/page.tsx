@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '../utils/supabase/client';
 import { CheckCircle2, AlertCircle, PlusCircle } from 'lucide-react';
 
 export default function Dashboard() {
